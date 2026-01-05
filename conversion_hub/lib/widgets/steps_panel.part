@@ -1,0 +1,36 @@
+import 'package:flutter/material.dart';
+
+class StepsPanel extends StatelessWidget {
+  final List<String> lines;
+  final String title;
+
+  const StepsPanel({
+    super.key,
+    required this.lines,
+    this.title = 'Show steps',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (lines.isEmpty) return const SizedBox.shrink();
+
+    return ExpansionTile(
+      title: Text(title),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final line in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(line),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
