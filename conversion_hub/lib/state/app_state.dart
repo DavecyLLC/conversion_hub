@@ -1,92 +1,42 @@
 import 'package:flutter/material.dart';
-import 'models.dart';
+import 'package:conversion_hub/state/models.dart';
 
 class AppState extends ChangeNotifier {
   AppSettings settings;
-
-  /// Recent tool usage (for "Recents" tab / sorting)
+  final Set<String> _favorites;
   final List<HistoryItem> recents;
-
-  /// Favorites tool IDs
-  final Set<String> favorites;
 
   AppState({
     required this.settings,
-    List<HistoryItem>? recents,
     Set<String>? favorites,
-  })  : recents = recents ?? <HistoryItem>[],
-        favorites = favorites ?? <String>{};
+    List<HistoryItem>? recents,
+  })  : _favorites = favorites ?? <String>{},
+        recents = recents ?? <HistoryItem>[];
 
-  // -----------------------------
-  // Settings updates
-  // -----------------------------
   void updateSettings(AppSettings next) {
     settings = next;
     notifyListeners();
   }
 
-  void setDecimals(int decimals) {
-    settings = settings.copyWith(decimals: decimals);
-    notifyListeners();
-  }
-
-  void setDefaultLengthUnit(String unit) {
-    settings = settings.copyWith(defaultLengthUnit: unit);
-    notifyListeners();
-  }
-
-  void setHaptics(bool enabled) {
-    settings = settings.copyWith(haptics: enabled);
-    notifyListeners();
-  }
-
-  void setScientific(bool enabled) {
-    settings = settings.copyWith(scientific: enabled);
-    notifyListeners();
-  }
-
-  void setThemeMode(AppThemeMode mode) {
-    settings = settings.copyWith(themeMode: mode);
-    notifyListeners();
-  }
-
-  // -----------------------------
-  // Recents
-  // -----------------------------
-  void addRecent(HistoryItem item) {
-    recents.insert(0, item);
-    if (recents.length > 50) {
-      recents.removeRange(50, recents.length);
-    }
-    notifyListeners();
-  }
-
-  void clearRecents() {
-    recents.clear();
-    notifyListeners();
-  }
-
-  // -----------------------------
-  // Favorites
-  // -----------------------------
-  bool isFavorite(String toolId) => favorites.contains(toolId);
+  bool isFavorite(String toolId) => _favorites.contains(toolId);
 
   void toggleFavorite(String toolId) {
-    if (favorites.contains(toolId)) {
-      favorites.remove(toolId);
+    if (_favorites.contains(toolId)) {
+      _favorites.remove(toolId);
     } else {
-      favorites.add(toolId);
+      _favorites.add(toolId);
     }
     notifyListeners();
   }
 
-  void clearFavorites() {
-    favorites.clear();
+  void addRecent(HistoryItem item) {
+    recents.removeWhere((r) => r.toolId == item.toolId);
+    recents.insert(0, item);
+    if (recents.length > 50) recents.removeRange(50, recents.length);
     notifyListeners();
   }
 }
 
-/// Provides AppState + rebuilds dependents when AppState notifies.
 class AppStateScope extends InheritedNotifier<AppState> {
   const AppStateScope({
     super.key,
@@ -96,7 +46,7 @@ class AppStateScope extends InheritedNotifier<AppState> {
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppStateScope>();
-    assert(scope != null, 'AppStateScope not found above in the widget tree');
+    assert(scope != null, 'AppStateScope not found in widget tree');
     return scope!.notifier!;
   }
 }

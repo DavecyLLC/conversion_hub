@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:conversion_hub/app/home_shell.dart';
 import 'package:conversion_hub/app/theme.dart';
 import 'package:conversion_hub/state/app_state.dart';
@@ -18,14 +17,11 @@ class ConvertHubApp extends StatelessWidget {
     final state = AppStateScope.of(context);
 
     return MaterialApp(
-      title: 'Engineering Convert',
+      title: 'Conversion Hub',
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
-
-      // ✅ Use the helper that converts AppThemeMode -> ThemeMode
       themeMode: state.settings.materialThemeMode,
-
       home: const HomeShell(),
     );
   }

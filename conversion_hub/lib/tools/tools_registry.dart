@@ -1,94 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:conversion_hub/state/app_state.dart';
-import 'package:conversion_hub/widgets/card.dart';
-import 'package:conversion_hub/utils/haptics.dart';
-
-import 'tools_list.dart';
+import 'package:conversion_hub/tools/tools_list.dart';
 
 enum ToolListMode { all, favorites, recents }
 
-class ToolsRegistryScreen extends StatelessWidget {
+class ToolsRegistryScreen extends StatefulWidget {
   final ToolListMode mode;
   const ToolsRegistryScreen({super.key, required this.mode});
+
+  @override
+  State<ToolsRegistryScreen> createState() => _ToolsRegistryScreenState();
+}
+
+class _ToolsRegistryScreenState extends State<ToolsRegistryScreen> {
+  String _q = '';
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
 
-    final tools = allTools;
-
-    final filtered = switch (mode) {
-      ToolListMode.all => tools,
-      ToolListMode.favorites => tools.where((t) => state.isFavorite(t.id)).toList(),
-      ToolListMode.recents => tools.where((t) => state.recents.any((r) => r.toolId == t.id)).toList(),
-    };
-
-    if (mode == ToolListMode.recents) {
-      filtered.sort((a, b) {
-        final aAt = _lastUsedAt(state, a.id);
-        final bAt = _lastUsedAt(state, b.id);
-        return bAt.compareTo(aAt);
-      });
+    List<ToolDef> tools;
+    switch (widget.mode) {
+      case ToolListMode.all:
+        tools = allTools;
+        break;
+      case ToolListMode.favorites:
+        tools = allTools.where((t) => state.isFavorite(t.id)).toList();
+        break;
+      case ToolListMode.recents:
+        final ids = state.recents.map((r) => r.toolId).toSet();
+        tools = allTools.where((t) => ids.contains(t.id)).toList();
+        tools.sort((a, b) {
+          DateTime aAt = DateTime.fromMillisecondsSinceEpoch(0);
+          DateTime bAt = DateTime.fromMillisecondsSinceEpoch(0);
+          for (final r in state.recents) {
+            if (r.toolId == a.id) aAt = r.at;
+            if (r.toolId == b.id) bAt = r.at;
+          }
+          return bAt.compareTo(aAt);
+        });
+        break;
     }
 
-    return ListView.builder(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    if (_q.trim().isNotEmpty) {
+      final q = _q.trim().toLowerCase();
+      tools = tools.where((t) {
+        final hay = (t.title + ' ' + t.keywords.join(' ')).toLowerCase();
+        return hay.contains(q);
+      }).toList();
+    }
+
+    return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      itemCount: filtered.length,
-      itemBuilder: (context, i) {
-        final tool = filtered[i];
-        final fav = state.isFavorite(tool.id);
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: AppCard(
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(tool.title),
-              subtitle: Text(tool.subtitle),
-              leading: Icon(tool.icon),
-              trailing: IconButton(
-                tooltip: fav ? 'Unfavorite' : 'Favorite',
-                icon: Icon(fav ? Icons.star : Icons.star_border),
-                onPressed: () async {
-                  await tapHaptic(state.settings.haptics);
-                  state.toggleFavorite(tool.id);
-                },
-              ),
-              onTap: () async {
-                await tapHaptic(state.settings.haptics);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => tool.builder()),
-                );
-              },
-            ),
+      children: [
+        TextField(
+          decoration: const InputDecoration(
+            labelText: 'Search tools',
+            prefixIcon: Icon(Icons.search),
           ),
-        );
-      },
+          onChanged: (v) => setState(() => _q = v),
+        ),
+        const SizedBox(height: 12),
+        ...tools.map((t) => _ToolTile(tool: t)),
+        if (tools.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 24),
+            child: Text('No tools found.'),
+          ),
+      ],
     );
-  }
-
-  DateTime _lastUsedAt(AppState state, String toolId) {
-    for (final r in state.recents) {
-      if (r.toolId == toolId) return r.at; // recents are stored newest-first
-    }
-    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
 
-class ToolMeta {
-  final String id;
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget Function() builder;
+class _ToolTile extends StatelessWidget {
+  final ToolDef tool;
+  const _ToolTile({required this.tool});
 
-  const ToolMeta({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.builder,
-  });
+  @override
+  Widget build(BuildContext context) {
+    final state = AppStateScope.of(context);
+    final fav = state.isFavorite(tool.id);
+
+    return Card(
+      elevation: 0.5,
+      child: ListTile(
+        leading: Icon(tool.icon),
+        title: Text(tool.title),
+        trailing: IconButton(
+          icon: Icon(fav ? Icons.star : Icons.star_border),
+          onPressed: () => state.toggleFavorite(tool.id),
+        ),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => tool.builder()),
+        ),
+      ),
+    );
+  }
 }
